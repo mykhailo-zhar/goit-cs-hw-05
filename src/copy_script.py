@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import argparse
+import asyncio
 
-from file_copy import copy
+from file_copy import copy_async
 
 
 def main() -> None:
@@ -28,7 +29,7 @@ def main() -> None:
         help="Limit the number of directories to copy",
     )
     args = parser.parse_args()
-    copy(args.source, args.destination, args.limit)
+    asyncio.run(copy_async(args.source, args.destination, args.limit))
 
 
 if __name__ == "__main__":

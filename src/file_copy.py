@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import asyncio
 import os
-import shutil
 from pathlib import Path
 
+from aiopath import AsyncPath
+from aioshutil import copyfile
 
-def copy(
+
+async def copy_async(
     source: str | Path | None, destination: str | Path | None = "./dist", limit: int = 5
 ) -> None:
     """Copy files from ``source`` into ``destination``, grouped by file extension.
@@ -39,15 +42,11 @@ def copy(
     if destination_path.exists() and not destination_path.is_dir():
         raise ValueError("destination is not a directory")
 
-    files = collect_files(source_path, limit)
+    files = await read_folder_async(source_path, limit)
     if not files:
         return
 
-    mapped_files = map_files(files, destination_path, source_path)
-    create_directories(mapped_files.values())
-
-    for original, mapped in mapped_files.items():
-        shutil.copy2(original, mapped)
+    await copy_files_async(files, destination_path, source_path)
 
 
 def map_file_to_directory(file: Path) -> str:
@@ -68,17 +67,6 @@ def map_file_to_directory(file: Path) -> str:
 
     extension = file.suffix
     return "other" if extension == "" else extension
-
-
-def create_directories(directories: list[Path]) -> None:
-    """Create extension-based subdirectories under ``destination`` for ``files``.
-
-    Args:
-        directories: Directories to create.
-    """
-    parents = {directory.parent for directory in directories}
-    for parent in parents:
-        parent.mkdir(parents=True, exist_ok=True)
 
 
 def map_file_to_path(
@@ -110,7 +98,12 @@ def map_file_to_path(
     return Path(destination) / file_directory / file_name
 
 
-def map_files(
+async def copy_file(file: Path, new_path: Path):
+    await AsyncPath(new_path).parent.mkdir(parents=True, exist_ok=True)
+    await copyfile(file, new_path)
+
+
+async def copy_files_async(
     files: list[Path],
     destination: str | Path,
     source: str | Path,
@@ -129,16 +122,18 @@ def map_files(
     Returns:
         A mapping from each original file path to its destination path.
     """
-    mapped_files: dict[Path, Path] = {}
     base_names: dict[str, bool] = {}
+
+    copy_tasks = []
     for file in files:
         preserve = file.name in base_names
         base_names[file.name] = True
-        mapped_files[file] = map_file_to_path(file, destination, source, preserve)
-    return mapped_files
+        new_file_path = map_file_to_path(file, destination, source, preserve)
+        copy_tasks.append(copy_file(file, new_file_path))
+    await asyncio.gather(*copy_tasks)
 
 
-def collect_files(directory: str | Path, limit: int = 5) -> list[Path]:
+async def read_folder_async(directory: str | Path, limit: int = 5) -> list[Path]:
     """Collect files from a directory recursively.
 
     Args:
@@ -151,9 +146,15 @@ def collect_files(directory: str | Path, limit: int = 5) -> list[Path]:
     files: list[Path] = []
     if limit == 0:
         return files
+
+    tasks = []
+
     for child in Path(directory).iterdir():
         if child.is_dir():
-            files.extend(collect_files(child, limit - 1))
+            tasks.append(read_folder_async(child, limit - 1))
         else:
             files.append(child.resolve())
+
+    for file_list in await asyncio.gather(*tasks):
+        files.extend(file_list)
     return files
