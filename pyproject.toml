@@ -5,6 +5,8 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "aiopath>=0.7.7",
+    "aioshutil>=1.6",
     "alabaster==1.0.0",
     "babel==2.18.0",
     "certifi==2026.4.22",
@@ -21,6 +23,7 @@ dependencies = [
     "pre-commit>=4.6.0",
     "pygments==2.20.0",
     "pytest==9.0.3",
+    "pytest-asyncio>=1.4.0",
     "pytest-cov>=7.1.0",
     "pytest-sphinx>=0.7.1",
     "requests==2.33.1",
