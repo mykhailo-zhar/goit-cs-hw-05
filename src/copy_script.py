@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import logging
 
 from file_copy import copy_async
+from utility import configure_logger
 
 
 def main() -> None:
@@ -29,6 +31,10 @@ def main() -> None:
         help="Limit the number of directories to copy",
     )
     args = parser.parse_args()
+
+    logger = logging.getLogger()
+    configure_logger(logger)
+
     asyncio.run(copy_async(args.source, args.destination, args.limit))
 
 
