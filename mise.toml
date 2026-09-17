@@ -14,7 +14,6 @@ python.uv_venv_auto = "create|source"
 
 [tools]
 python = "{{ get_env(name='PYTHON_VERSION', default='3.12') }}"
-ruff = "latest"
 uv = "latest"
 
 [tasks.install-dependencies]
