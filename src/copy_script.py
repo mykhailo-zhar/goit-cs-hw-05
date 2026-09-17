@@ -25,7 +25,7 @@ def main() -> None:
         default=5,
         const=5,
         nargs="?",
-        help="Limit the number of files to copy",
+        help="Limit the number of directories to copy",
     )
     args = parser.parse_args()
     copy(args.source, args.destination, args.limit)
