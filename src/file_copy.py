@@ -154,6 +154,7 @@ async def copy_files(
             asyncio.create_task(copy_file(file, destination, source, preserve))
         )
 
+    # У випадку порожнього tasks wait буде падати
     if not copy_tasks:
         logger.debug("No files to copy")
         return
@@ -196,7 +197,9 @@ async def read_folder(directory: str | AsyncPath, limit: int = -1) -> list[Async
         else:
             tasks.append(asyncio.create_task(read_child(child)))
 
+    # У випадку порожнього tasks wait буде падати
     if not tasks:
+        logger.debug("No contents in %s at level %d", directory, limit)
         return files
 
     logger.debug("Reading %s contents at level %d", directory, limit)
