@@ -57,7 +57,7 @@ def get_filehandler(formatter: logging.Formatter, prefix):
 
     tz = timezone(timedelta(hours=2))  # GMT+2
     timestamp = datetime.now(tz=tz).strftime("%Y%m%d_%H%M%S")
-    log_filename = logs_dir / f"{prefix}_search_{timestamp}.log"
+    log_filename = logs_dir / f"{prefix}_copying_{timestamp}.log"
     file_handler = logging.FileHandler(log_filename)
     file_handler.setLevel(logging.DEBUG)
     file_handler.setFormatter(formatter)
