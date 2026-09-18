@@ -6,8 +6,12 @@ import argparse
 import asyncio
 import logging
 
-from file_copy import copy
-from utility import configure_logger
+if __package__ == "src":
+    from .file_copy import copy
+    from .utility import configure_logger
+else:
+    from file_copy import copy
+    from utility import configure_logger
 
 
 def main() -> None:

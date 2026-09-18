@@ -1,6 +1,4 @@
-def main():
-    print("Hello from TODO: replace goit-pycore-template!")
-
+from src.copy_script import main
 
 if __name__ == "__main__":
     main()
