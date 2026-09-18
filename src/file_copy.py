@@ -115,7 +115,7 @@ async def map_file_to_path(
 
 async def copy_file(
     file: AsyncPath, destination: AsyncPath, source: AsyncPath, preserve: bool
-):
+) -> None:
     new_path = await map_file_to_path(file, destination, source, preserve)
     await AsyncPath(new_path).parent.mkdir(parents=True, exist_ok=True)
     await copyfile(file, new_path)
@@ -125,7 +125,7 @@ async def copy_files(
     files: list[AsyncPath],
     destination: str | AsyncPath,
     source: str | AsyncPath,
-):
+) -> None:
     """Copying each source file to its destination path, handling basename collisions.
 
     The first file with a given basename keeps its original name. Subsequent
@@ -154,6 +154,10 @@ async def copy_files(
             asyncio.create_task(copy_file(file, destination, source, preserve))
         )
 
+    if not copy_tasks:
+        logger.debug("No files to copy")
+        return
+
     logger.debug("Copying has been scheduled")
     done, _ = await asyncio.wait(copy_tasks)
     for task in done:
@@ -164,10 +168,10 @@ async def copy_files(
 
 
 async def read_child(child_path: AsyncPath) -> list[AsyncPath]:
-    return [await child_path.resolve()]
+    return [await AsyncPath(child_path).resolve()]
 
 
-async def read_folder(directory: str | AsyncPath, limit: int = 5) -> list[AsyncPath]:
+async def read_folder(directory: str | AsyncPath, limit: int = -1) -> list[AsyncPath]:
     """Collect files from a directory recursively.
 
     Args:
@@ -191,6 +195,9 @@ async def read_folder(directory: str | AsyncPath, limit: int = 5) -> list[AsyncP
             tasks.append(asyncio.create_task(read_folder(child, limit - 1)))
         else:
             tasks.append(asyncio.create_task(read_child(child)))
+
+    if not tasks:
+        return files
 
     logger.debug("Reading %s contents at level %d", directory, limit)
     done, _ = await asyncio.wait(tasks)
