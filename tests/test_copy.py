@@ -69,6 +69,7 @@ class TestCopy:
         await copy(source_dir, destination_dir)
 
         assert get_file_extname_dir(destination_dir, file_name).is_dir()
+        assert (source_dir / file_name).read_text() == "test"
 
     @pytest.mark.asyncio
     async def test_copies_multiple_files_under_same_extension(
