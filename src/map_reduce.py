@@ -1,3 +1,5 @@
+"""Download text from a URL, count word frequencies with MapReduce, and plot the top words."""
+
 import heapq
 import string
 from collections import defaultdict
@@ -10,6 +12,14 @@ import requests
 
 
 def get_text(url):
+    """Fetch the document body from ``url``.
+
+    Args:
+        url: HTTP(S) address of the text to download.
+
+    Returns:
+        Response text on success, or ``None`` if the request fails.
+    """
     try:
         response = requests.get(url)
         response.raise_for_status()  # Перевірка на помилки HTTP
@@ -18,20 +28,39 @@ def get_text(url):
         return None
 
 
-# Функція для видалення знаків пунктуації
 def remove_punctuation(text):
+    """Strip ASCII punctuation characters from ``text``.
+
+    Args:
+        text: Raw input string.
+
+    Returns:
+        ``text`` with punctuation removed.
+    """
     return text.translate(str.maketrans("", "", string.punctuation))
 
 
 def map_chunk(chunk: list[str]):
-    return [map_word(word) for word in chunk]
+    """Map every word in a chunk to a ``(word, 1)`` pair.
 
+    Args:
+        chunk: Consecutive words from the tokenized text.
 
-def map_word(word: str):
-    return word.lower(), 1
+    Returns:
+        Mapped pairs produced by :func:`map_word`.
+    """
+    return [(word.lower(), 1) for word in chunk]
 
 
 def shuffle_function(mapped_values):
+    """Group mapped counts by word (the shuffle step).
+
+    Args:
+        mapped_values: Iterable of per-chunk lists of ``(word, 1)`` pairs.
+
+    Returns:
+        Items of a mapping from word to a list of partial counts.
+    """
     reduced_chunks = reduce(lambda acc, x: acc + x, mapped_values, [])
     shuffled = defaultdict(list)
     for key, value in reduced_chunks:
@@ -40,13 +69,29 @@ def shuffle_function(mapped_values):
 
 
 def reduce_function(key_values):
+    """Sum partial counts for one word (the reduce step).
+
+    Args:
+        key_values: A ``(word, counts)`` pair from the shuffle step.
+
+    Returns:
+        A ``(word, total_count)`` pair.
+    """
     key, values = key_values
     return key, sum(values)
 
 
-# Виконання MapReduce
 def map_reduce(text, chunk_size=100, search_words=None):
-    # Видалення знаків пунктуації
+    """Count word frequencies in ``text`` using a parallel MapReduce pipeline.
+
+    Args:
+        text: Input document.
+        chunk_size: Number of words processed by each map worker.
+        search_words: If given, keep only these tokens before mapping.
+
+    Returns:
+        Mapping from lowercase word to occurrence count.
+    """
     text = remove_punctuation(text)
     words = text.split()
 
@@ -72,6 +117,12 @@ def map_reduce(text, chunk_size=100, search_words=None):
 
 
 def visualize_top_words(words: dict[Any, int], N: int = 10):
+    """Draw a horizontal bar chart of the ``N`` most frequent words.
+
+    Args:
+        words: Mapping from word to occurrence count.
+        N: How many top words to display. Defaults to ``10``.
+    """
     top = heapq.nlargest(N, words.items(), key=lambda item: item[1])
     labels = [word for word, _ in top]
     counts = [count for _, count in top]

@@ -20,6 +20,22 @@ src.file\_copy module
    :show-inheritance:
    :undoc-members:
 
+src.map\_reduce module
+----------------------
+
+.. automodule:: src.map_reduce
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+src.utility module
+------------------
+
+.. automodule:: src.utility
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
 Module contents
 ---------------
 
