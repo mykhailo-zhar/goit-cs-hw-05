@@ -43,14 +43,14 @@ async def copy_async(
         logger.critical(LOGGING_MESSAGES["missing_source_or_dest"])
         raise ValueError(LOGGING_MESSAGES["missing_source_or_dest"])
 
-    source_path = Path(source)
-    destination_path = Path(destination)
+    source_path = AsyncPath(source)
+    destination_path = AsyncPath(destination)
 
-    if not source_path.is_dir():
+    if not await source_path.is_dir():
         logger.critical(LOGGING_MESSAGES["source_not_dir"])
         raise ValueError(LOGGING_MESSAGES["source_not_dir"])
 
-    if destination_path.exists() and not destination_path.is_dir():
+    if await destination_path.exists() and not await destination_path.is_dir():
         logger.critical(LOGGING_MESSAGES["dest_not_dir"])
         raise ValueError(LOGGING_MESSAGES["dest_not_dir"])
 
@@ -62,7 +62,7 @@ async def copy_async(
     await copy_files_async(files, destination_path, source_path)
 
 
-def map_file_to_directory(file: Path) -> str:
+async def map_file_to_directory(file: AsyncPath) -> str:
     """Return the destination subdirectory name for a file based on its extension.
 
     Args:
@@ -75,7 +75,7 @@ def map_file_to_directory(file: Path) -> str:
     Raises:
         ValueError: If ``file`` is not a regular file.
     """
-    if not file.is_file():
+    if not await file.is_file():
         logger = logging.getLogger()
         logger.critical(LOGGING_MESSAGES["file_not_file"])
         raise ValueError(LOGGING_MESSAGES["file_not_file"])
@@ -84,12 +84,12 @@ def map_file_to_directory(file: Path) -> str:
     return "other" if extension == "" else extension
 
 
-def map_file_to_path(
-    original: Path,
-    destination: str | Path,
-    source: str | Path,
+async def map_file_to_path(
+    original: AsyncPath,
+    destination: AsyncPath,
+    source: AsyncPath,
     preserve: bool,
-) -> Path:
+) -> AsyncPath:
     """Build the destination path for a single file.
 
     Args:
@@ -103,26 +103,29 @@ def map_file_to_path(
     Returns:
         The full destination path under the extension subdirectory.
     """
-    file_directory = map_file_to_directory(original)
+    file_directory = await map_file_to_directory(original)
     if preserve:
-        relative = original.relative_to(Path(source).resolve())
+        relative: AsyncPath = original.relative_to(await source.resolve())
         original_directory = str(relative.parent).replace(os.sep, "-")
         file_name = f"{original.stem} (from {original_directory}){original.suffix}"
     else:
         file_name = original.name
-    return Path(destination) / file_directory / file_name
+    return AsyncPath(destination) / file_directory / file_name
 
 
-async def copy_file_async(file: Path, new_path: Path):
+async def copy_file_async(
+    file: AsyncPath, destination: AsyncPath, source: AsyncPath, preserve: bool
+):
+    new_path = await map_file_to_path(file, destination, source, preserve)
     await AsyncPath(new_path).parent.mkdir(parents=True, exist_ok=True)
     await copyfile(file, new_path)
 
 
 async def copy_files_async(
-    files: list[Path],
-    destination: str | Path,
-    source: str | Path,
-) -> dict[Path, Path]:
+    files: list[AsyncPath],
+    destination: str | AsyncPath,
+    source: str | AsyncPath,
+):
     """Copying each source file to its destination path, handling basename collisions.
 
     The first file with a given basename keeps its original name. Subsequent
@@ -147,15 +150,26 @@ async def copy_files_async(
     for file in files:
         preserve = file.name in base_names
         base_names[file.name] = True
-        new_file_path = map_file_to_path(file, destination, source, preserve)
-        copy_tasks.append(copy_file_async(file, new_file_path))
+        copy_tasks.append(
+            asyncio.create_task(copy_file_async(file, destination, source, preserve))
+        )
 
     logger.debug("Copying has been scheduled")
-    await asyncio.gather(*copy_tasks)
+    done, _ = await asyncio.wait(copy_tasks)
+    for task in done:
+        if exc := task.exception():
+            logger.error(exc)
+            continue
     logger.debug("Copying has been done")
 
 
-async def read_folder_async(directory: str | Path, limit: int = 5) -> list[Path]:
+async def read_child(child_path: AsyncPath) -> list[AsyncPath]:
+    return [await child_path.resolve()]
+
+
+async def read_folder_async(
+    directory: str | AsyncPath, limit: int = 5
+) -> list[AsyncPath]:
     """Collect files from a directory recursively.
 
     Args:
@@ -165,7 +179,7 @@ async def read_folder_async(directory: str | Path, limit: int = 5) -> list[Path]
     Returns:
         A list of resolved absolute paths for every file under ``directory``.
     """
-    files: list[Path] = []
+    files: list[AsyncPath] = []
     if limit == 0:
         return files
 
@@ -174,14 +188,18 @@ async def read_folder_async(directory: str | Path, limit: int = 5) -> list[Path]
     logger = logging.getLogger()
 
     logger.debug("Preparing to read contents of %s at level %d", directory, limit)
-    for child in Path(directory).iterdir():
-        if child.is_dir():
-            tasks.append(read_folder_async(child, limit - 1))
+    async for child in AsyncPath(directory).iterdir():
+        if await child.is_dir():
+            tasks.append(asyncio.create_task(read_folder_async(child, limit - 1)))
         else:
-            files.append(child.resolve())
+            tasks.append(asyncio.create_task(read_child(child)))
 
     logger.debug("Reading %s contents at level %d", directory, limit)
-    for file_list in await asyncio.gather(*tasks):
-        files.extend(file_list)
+    done, _ = await asyncio.wait(tasks)
+    for task in done:
+        if exc := task.exception():
+            logger.error(exc)
+            continue
+        files.extend(task.result())
     logger.debug("Done reading %s contents at level %d", directory, limit)
     return files
