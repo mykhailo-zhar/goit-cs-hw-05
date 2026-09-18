@@ -18,7 +18,7 @@ LOGGING_MESSAGES = {
 }
 
 
-async def copy_async(
+async def copy(
     source: str | Path | None, destination: str | Path | None = "./dist", limit: int = 5
 ) -> None:
     """Copy files from ``source`` into ``destination``, grouped by file extension.
@@ -55,11 +55,11 @@ async def copy_async(
         raise ValueError(LOGGING_MESSAGES["dest_not_dir"])
 
     logger.info("Starting reading contents of %s", source_path)
-    files = await read_folder_async(source_path, limit)
+    files = await read_folder(source_path, limit)
     if not files:
         return
 
-    await copy_files_async(files, destination_path, source_path)
+    await copy_files(files, destination_path, source_path)
 
 
 async def map_file_to_directory(file: AsyncPath) -> str:
@@ -113,7 +113,7 @@ async def map_file_to_path(
     return AsyncPath(destination) / file_directory / file_name
 
 
-async def copy_file_async(
+async def copy_file(
     file: AsyncPath, destination: AsyncPath, source: AsyncPath, preserve: bool
 ):
     new_path = await map_file_to_path(file, destination, source, preserve)
@@ -121,7 +121,7 @@ async def copy_file_async(
     await copyfile(file, new_path)
 
 
-async def copy_files_async(
+async def copy_files(
     files: list[AsyncPath],
     destination: str | AsyncPath,
     source: str | AsyncPath,
@@ -151,7 +151,7 @@ async def copy_files_async(
         preserve = file.name in base_names
         base_names[file.name] = True
         copy_tasks.append(
-            asyncio.create_task(copy_file_async(file, destination, source, preserve))
+            asyncio.create_task(copy_file(file, destination, source, preserve))
         )
 
     logger.debug("Copying has been scheduled")
@@ -167,9 +167,7 @@ async def read_child(child_path: AsyncPath) -> list[AsyncPath]:
     return [await child_path.resolve()]
 
 
-async def read_folder_async(
-    directory: str | AsyncPath, limit: int = 5
-) -> list[AsyncPath]:
+async def read_folder(directory: str | AsyncPath, limit: int = 5) -> list[AsyncPath]:
     """Collect files from a directory recursively.
 
     Args:
@@ -190,7 +188,7 @@ async def read_folder_async(
     logger.debug("Preparing to read contents of %s at level %d", directory, limit)
     async for child in AsyncPath(directory).iterdir():
         if await child.is_dir():
-            tasks.append(asyncio.create_task(read_folder_async(child, limit - 1)))
+            tasks.append(asyncio.create_task(read_folder(child, limit - 1)))
         else:
             tasks.append(asyncio.create_task(read_child(child)))
 

@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from src.file_copy import copy_async
+from src.file_copy import copy
 
 
 def create_source_dir(tmp_dir: Path) -> Path:
@@ -39,25 +39,25 @@ class TestCopy:
     @pytest.mark.asyncio
     async def test_raises_when_source_and_destination_absent(self) -> None:
         with pytest.raises(TypeError):
-            await copy_async()  # type: ignore[call-arg]
+            await copy()  # type: ignore[call-arg]
 
     @pytest.mark.asyncio
     async def test_raises_when_source_is_a_file(self, tmp_path: Path) -> None:
         temp_file = create_file(tmp_path, "test.txt")
         with pytest.raises(ValueError):
-            await copy_async(temp_file, "./dist")
+            await copy(temp_file, "./dist")
 
     @pytest.mark.asyncio
     async def test_raises_when_source_directory_does_not_exist(self) -> None:
         with pytest.raises(ValueError):
-            await copy_async("not_a_directory", "./dist")
+            await copy("not_a_directory", "./dist")
 
     @pytest.mark.asyncio
     async def test_raises_when_destination_is_a_file(self, tmp_path: Path) -> None:
         source_dir = create_source_dir(tmp_path)
         destination_file = create_file(tmp_path, "destination.txt")
         with pytest.raises(ValueError):
-            await copy_async(source_dir, destination_file)
+            await copy(source_dir, destination_file)
 
     @pytest.mark.asyncio
     async def test_copies_one_file_under_same_extension(self, tmp_path: Path) -> None:
@@ -66,7 +66,7 @@ class TestCopy:
         file_name = "test.txt"
         create_file(source_dir, file_name)
 
-        await copy_async(source_dir, destination_dir)
+        await copy(source_dir, destination_dir)
 
         assert get_file_extname_dir(destination_dir, file_name).is_dir()
 
@@ -85,7 +85,7 @@ class TestCopy:
         create_file(a_dir, "test.js")
         create_file(b_dir, "test.js")
 
-        await copy_async(source_dir, destination_dir)
+        await copy(source_dir, destination_dir)
 
         assert count_files(destination_dir, ".js") == 2
         assert count_files(destination_dir, ".txt") == 2

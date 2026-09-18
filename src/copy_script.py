@@ -6,7 +6,7 @@ import argparse
 import asyncio
 import logging
 
-from file_copy import copy_async
+from file_copy import copy
 from utility import configure_logger
 
 
@@ -35,7 +35,7 @@ def main() -> None:
     logger = logging.getLogger()
     configure_logger(logger)
 
-    asyncio.run(copy_async(args.source, args.destination, args.limit))
+    asyncio.run(copy(args.source, args.destination, args.limit))
 
 
 if __name__ == "__main__":
