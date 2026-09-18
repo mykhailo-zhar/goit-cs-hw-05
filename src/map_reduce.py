@@ -2,6 +2,7 @@ import heapq
 import string
 from collections import defaultdict
 from concurrent.futures import ProcessPoolExecutor
+from functools import reduce
 from typing import Any
 
 import matplotlib.pyplot as plt
@@ -22,13 +23,18 @@ def remove_punctuation(text):
     return text.translate(str.maketrans("", "", string.punctuation))
 
 
-def map_function(word):
-    return word, 1
+def map_chunk(chunk: list[str]):
+    return [map_word(word) for word in chunk]
+
+
+def map_word(word: str):
+    return word.lower(), 1
 
 
 def shuffle_function(mapped_values):
+    reduced_chunks = reduce(lambda acc, x: acc + x, mapped_values, [])
     shuffled = defaultdict(list)
-    for key, value in mapped_values:
+    for key, value in reduced_chunks:
         shuffled[key].append(value)
     return shuffled.items()
 
@@ -39,7 +45,7 @@ def reduce_function(key_values):
 
 
 # Виконання MapReduce
-def map_reduce(text, search_words=None):
+def map_reduce(text, chunk_size=100, search_words=None):
     # Видалення знаків пунктуації
     text = remove_punctuation(text)
     words = text.split()
@@ -48,9 +54,13 @@ def map_reduce(text, search_words=None):
     if search_words:
         words = [word for word in words if word in search_words]
 
+    chunks = []
+    for i in range(0, len(words), chunk_size):
+        chunks.append(words[i : i + chunk_size])
+
     # Паралельний Мапінг
     with ProcessPoolExecutor(max_workers=5) as executor:
-        mapped_values = list(executor.map(map_function, words))
+        mapped_values = list(executor.map(map_chunk, chunks))
 
         # Крок 2: Shuffle
         shuffled_values = shuffle_function(mapped_values)
@@ -61,8 +71,8 @@ def map_reduce(text, search_words=None):
     return dict(reduced_values)
 
 
-def visualize_top_words(words: dict[Any, int]):
-    top = heapq.nlargest(10, words.items(), key=lambda item: item[1])
+def visualize_top_words(words: dict[Any, int], N: int = 10):
+    top = heapq.nlargest(N, words.items(), key=lambda item: item[1])
     labels = [word for word, _ in top]
     counts = [count for _, count in top]
     positions = range(len(labels))
@@ -74,6 +84,7 @@ def visualize_top_words(words: dict[Any, int]):
     ax.set_yticks(positions, labels)
     ax.set_xlabel("Occurrences")
     ax.set_ylabel("Words")
+    ax.set_title(f"Top {N} occurences")
     ax.invert_yaxis()
     fig.tight_layout()
     plt.show()
