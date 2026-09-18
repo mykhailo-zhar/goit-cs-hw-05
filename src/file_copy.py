@@ -90,7 +90,7 @@ async def map_file_to_path(
     source: AsyncPath,
     preserve: bool,
 ) -> AsyncPath:
-    """Build the destination path for a single file.
+    """Build the destination path for a single file, including duplicates.
 
     Args:
         original: Absolute path of the source file.
@@ -116,6 +116,15 @@ async def map_file_to_path(
 async def copy_file(
     file: AsyncPath, destination: AsyncPath, source: AsyncPath, preserve: bool
 ) -> None:
+    """Encapsulates all async copying operations under one task.
+
+    Args:
+        file: Source file to copy.
+        destination: Root destination directory.
+        source: Root source directory, used when resolving collision-safe names.
+        preserve: If ``True``, embed the relative parent directory in the
+            destination filename.
+    """
     new_path = await map_file_to_path(file, destination, source, preserve)
     await AsyncPath(new_path).parent.mkdir(parents=True, exist_ok=True)
     await copyfile(file, new_path)
@@ -168,7 +177,15 @@ async def copy_files(
     logger.debug("Copying has been done")
 
 
-async def read_child(child_path: AsyncPath) -> list[AsyncPath]:
+async def read_file(child_path: AsyncPath) -> list[AsyncPath]:
+    """Allows files be collected under the same API as directories
+
+    Args:
+        child_path: Path of a file found while scanning a folder.
+
+    Returns:
+        A one-item list with the resolved absolute path of ``child_path``.
+    """
     return [await AsyncPath(child_path).resolve()]
 
 
@@ -195,7 +212,7 @@ async def read_folder(directory: str | AsyncPath, limit: int = -1) -> list[Async
         if await child.is_dir():
             tasks.append(asyncio.create_task(read_folder(child, limit - 1)))
         else:
-            tasks.append(asyncio.create_task(read_child(child)))
+            tasks.append(asyncio.create_task(read_file(child)))
 
     # У випадку порожнього tasks wait буде падати
     if not tasks:

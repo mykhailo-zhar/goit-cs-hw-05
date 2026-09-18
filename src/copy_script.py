@@ -15,6 +15,7 @@ else:
 
 
 def main() -> None:
+    """Parse CLI arguments and run asynchronous copy grouped by extension."""
     parser = argparse.ArgumentParser(usage="copy.py [options]")
     parser.add_argument("-s", "--source", required=True, help="Source directory")
     parser.add_argument(
