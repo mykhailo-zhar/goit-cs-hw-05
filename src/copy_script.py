@@ -25,8 +25,8 @@ def main() -> None:
         "-l",
         "--limit",
         type=int,
-        default=5,
-        const=5,
+        default=-1,
+        const=-1,
         nargs="?",
         help="Limit the number of directories to copy",
     )
